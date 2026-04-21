@@ -1,0 +1,14 @@
+extract_task:
+  description: >
+    请阅读以下患者的自述，提取出具体的症状清单。
+    患者自述：{patient_case}
+  expected_output: >
+    一个清晰的要点列表（Bullet points），仅包含核心症状，不要多余废话。
+  agent: nurse_agent
+
+diagnose_task:
+  description: >
+    基于护士提取的症状清单，给出可能的3种常规疾病猜测，并给出一句就诊科室建议。
+  expected_output: >
+    一段简短的初步诊断建议。
+  agent: doctor_agent

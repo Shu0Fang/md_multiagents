@@ -1,0 +1,24 @@
+[project]
+name = "md_multiagents"
+version = "0.1.0"
+description = "md_multiagents using crewAI"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai[tools]==1.14.2"
+]
+
+[project.scripts]
+md_multiagents = "md_multiagents.main:run"
+run_crew = "md_multiagents.main:run"
+train = "md_multiagents.main:train"
+replay = "md_multiagents.main:replay"
+test = "md_multiagents.main:test"
+run_with_trigger = "md_multiagents.main:run_with_trigger"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "crew"
