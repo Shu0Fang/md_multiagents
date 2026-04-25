@@ -15,11 +15,20 @@ class RagTool(BaseTool):
         for file in self.chunk_dir.glob("*.txt"):
             text = file.read_text(encoding="utf-8")
             # 简单关键字匹配
-            if any(word in text for word in keywords):
-                results.append(text.strip())
+            hits = sum(1 for word in keywords if word in text)
+            if hits > 0:
+                results.append((hits, file.name, text.strip()))
 
         if not results:
             return "未检索到相关指南条目。"
 
+        results.sort(key=lambda x: x[0], reverse=True)
+
         # 返回前 3 条，避免上下文过长
-        return "\n\n".join(results[:3])
+        rendered = []
+        for hits, filename, content in results[:3]:
+            rendered.append(
+                f"[SOURCE: {filename}; HITS: {hits}]\n{content}"
+            )
+
+        return "\n\n".join(rendered)

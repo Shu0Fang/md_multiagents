@@ -3,9 +3,59 @@ import json
 from md_multiagents.crew import MdMultiagentsCrew
 
 
+REQUIRED_FINAL_KEYS = [
+    "final_judgment",
+    "risk_level",
+    "recommended_tests",
+    "disagreement_points",
+    "next_steps",
+    "safety_notes",
+    "evidence_chunks",
+]
+
+
+def _extract_json_payload(result):
+    """Extract dict payload from CrewOutput when possible."""
+    if isinstance(result, dict):
+        return result
+
+    json_dict = getattr(result, "json_dict", None)
+    if isinstance(json_dict, dict) and json_dict:
+        return json_dict
+
+    raw = getattr(result, "raw", None)
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            return None
+
+    return None
+
+
+def _validate_final_payload(payload):
+    """Validate required keys for synthesis output."""
+    if not isinstance(payload, dict):
+        print("[WARN] 最终输出不是 JSON object，跳过字段校验。")
+        return
+
+    missing = [k for k in REQUIRED_FINAL_KEYS if k not in payload]
+    if missing:
+        print(f"[WARN] 最终输出缺少字段: {', '.join(missing)}")
+    else:
+        print("[INFO] 最终输出字段校验通过。")
+
+
 def _print_result(result):
     """Print Crew output safely: prefer structured JSON, then fall back to raw text."""
-    if isinstance(result, (dict, list)):
+    payload = _extract_json_payload(result)
+    if isinstance(payload, dict):
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+
+    if isinstance(result, list):
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return
 
@@ -46,6 +96,9 @@ def run():
     
     print("\n================ 最终会诊结果 ================\n")
     _print_result(result)
+
+    # 对综合结果做最小字段校验，便于自动化链路稳定性检查
+    _validate_final_payload(_extract_json_payload(result))
 
 
 def train():

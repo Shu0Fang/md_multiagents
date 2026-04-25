@@ -24,19 +24,20 @@ primary_care_task:
   description: >-
     请基于 extraction_task 的结构化输出，为患者提供全科视角初步诊断：
     请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
+    输出中必须包含 evidence_chunks 字段，列出引用到的 chunk 文件名（如 chunk_012.txt）。
     - 请列出可能可逆病因（reversible_causes）
     - 提出需补充的检查项目（additional_tests）
     - 给出转诊建议（referral_suggestions）
     - 给出 AD 风险等级（risk_level: 低/中/高）
     请严格按字段输出，不要输出无关段落。
+    必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
     结构化字段结果，包含：
-    reversible_causes, additional_tests, referral_suggestions, risk_level
+    reversible_causes, additional_tests, referral_suggestions, risk_level, evidence_chunks
   agent: primary_care_agent
   async_execution: true
   context:
     - extraction_task
-  async_execution: true
 
 neurologist_task:
   description: >-
@@ -47,11 +48,12 @@ neurologist_task:
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
     - risk_level: AD 风险等级（低/中/高）
+    - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
     请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
     结构化字段结果，包含：
-    neurological_findings, additional_tests, referral_suggestions, risk_level
+    neurological_findings, additional_tests, referral_suggestions, risk_level, evidence_chunks
   agent: neurologist_agent
   context:
     - extraction_task
@@ -66,11 +68,12 @@ geriatrician_task:
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
     - risk_level: AD 风险等级（低/中/高）
+    - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
     请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
     结构化字段结果，包含：
-    geriatric_findings, additional_tests, referral_suggestions, risk_level
+    geriatric_findings, additional_tests, referral_suggestions, risk_level, evidence_chunks
   agent: geriatrician_agent
   context:
     - extraction_task
@@ -85,11 +88,12 @@ psychiatrist_task:
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
     - risk_level: AD 风险等级（低/中/高）
+    - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
     请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
     结构化字段结果，包含：
-    psychiatric_findings, additional_tests, referral_suggestions, risk_level
+    psychiatric_findings, additional_tests, referral_suggestions, risk_level, evidence_chunks
   agent: psychiatrist_agent
   context:
     - extraction_task
@@ -104,11 +108,12 @@ psychologist_task:
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
     - risk_level: AD 风险等级（低/中/高）
+    - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
     请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
     结构化字段结果，包含：
-    psychological_findings, additional_tests, referral_suggestions, risk_level
+    psychological_findings, additional_tests, referral_suggestions, risk_level, evidence_chunks
   agent: psychologist_agent
   context:
     - extraction_task
@@ -123,6 +128,7 @@ synthesis_task:
     - disagreement_points: 各专科意见差异
     - next_steps: 下一步建议
     - safety_notes: 安全提示
+    - evidence_chunks: 最终结论引用到的 chunk 文件名列表（需汇总上游证据）
     上游任务 context：
     - primary_care_task
     - neurologist_task
@@ -133,7 +139,7 @@ synthesis_task:
   expected_output: >-
     结构化字段结果，包含：
     final_judgment, risk_level, recommended_tests,
-    disagreement_points, next_steps, safety_notes
+    disagreement_points, next_steps, safety_notes, evidence_chunks
   agent: ad_specialist_agent
   async_execution: false
   context:
