@@ -1,14 +1,60 @@
-extract_task:
-  description: >
-    请阅读以下患者的自述，提取出具体的症状清单。
-    患者自述：{patient_case}
-  expected_output: >
-    一个清晰的要点列表（Bullet points），仅包含核心症状，不要多余废话。
-  agent: nurse_agent
+extraction_task:
+  description: >-
+    请阅读以下患者的纵向病历，提取出与阿尔茨海默病相关的具体症状清单。
+    患者病历：{patient_record}
+  expected_output: >-
+    一个清晰的时间序列概况，仅包含核心症状，不要多余废话。
+  agent: data_extraction_agent
 
-diagnose_task:
-  description: >
-    基于护士提取的症状清单，给出可能的3种常规疾病猜测，并给出一句就诊科室建议。
-  expected_output: >
+primary_care_task:
+  description: >-
+    分析数据提取专家提供的症状概况，从全科医学角度提供初步诊断意见。
+  expected_output: >-
     一段简短的初步诊断建议。
-  agent: doctor_agent
+  agent: primary_care_agent
+  context: [extraction_task]
+  async_execution: true
+
+neurologist_task:
+  description: >-
+    分析数据提取专家提供的症状概况，从神经学角度提供初步诊断意见。
+  expected_output: >-
+    一段简短的初步诊断建议。
+  agent: neurologist_agent
+  context: [extraction_task]
+  async_execution: true
+
+geriatrician_task:
+  description: >-
+    分析数据提取专家提供的症状概况，从老年医学角度提供初步诊断意见。
+  expected_output: >-
+    一段简短的初步诊断建议。
+  agent: geriatrician_agent
+  context: [extraction_task]
+  async_execution: true
+
+psychiatrist_task:
+  description: >-
+    分析数据提取专家提供的症状概况，从精神医学角度提供初步诊断意见。
+  expected_output: >-
+    一段简短的初步诊断建议。
+  agent: psychiatrist_agent
+  context: [extraction_task]
+  async_execution: true
+
+psychologist_task:
+  description: >-
+    分析数据提取专家提供的症状概况，从心理学角度提供初步诊断意见。
+  expected_output: >-
+    一段简短的初步诊断建议。
+  agent: psychologist_agent
+  context: [extraction_task]
+  async_execution: true
+
+synthesis_task:
+  description: >-
+    综合各专科医生的诊断意见，给出最终的诊断结论。
+  expected_output: >-
+    一段综合性的诊断结论。
+  agent: ad_specialist_agent
+  context: [primary_care_task, neurologist_task, geriatrician_task, psychiatrist_task, psychologist_task]

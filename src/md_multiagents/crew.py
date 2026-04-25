@@ -11,30 +11,95 @@ class MdMultiagentsCrew():
 
     # --- 注册 Agent ---
     @agent
-    def nurse_agent(self) -> Agent:
+    def data_extraction_agent(self) -> Agent:
         return Agent(
-            config=self.agents_config['nurse_agent'],
+            config=self.agents_config['data_extraction_agent'],
             verbose=True
         )
 
     @agent
-    def doctor_agent(self) -> Agent:
+    def primary_care_agent(self) -> Agent:
         return Agent(
-            config=self.agents_config['doctor_agent'],
+            config=self.agents_config['primary_care_agent'],
+            verbose=True
+        )
+
+    @agent
+    def neurologist_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['neurologist_agent'],
+            verbose=True
+        )
+
+    @agent
+    def geriatrician_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['geriatrician_agent'],
+            verbose=True
+        )
+
+    @agent
+    def psychiatrist_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['psychiatrist_agent'],
+            verbose=True
+        )
+
+    @agent
+    def psychologist_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['psychologist_agent'],
+            verbose=True
+        )
+
+    @agent
+    def ad_specialist_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['ad_specialist_agent'],
             verbose=True
         )
 
     # --- 注册 Task ---
     @task
-    def extract_task(self) -> Task:
+    def extraction_task(self) -> Task:
         return Task(
-            config=self.tasks_config['extract_task'],
+            config=self.tasks_config['extraction_task'],
         )
 
     @task
-    def diagnose_task(self) -> Task:
+    def primary_care_task(self) -> Task:
         return Task(
-            config=self.tasks_config['diagnose_task'],
+            config=self.tasks_config['primary_care_task'],
+        )
+
+    @task
+    def neurologist_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['neurologist_task'],
+        )
+
+    @task
+    def geriatrician_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['geriatrician_task'],
+        )
+
+    @task
+    def psychiatrist_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['psychiatrist_task'],
+        )
+
+    @task
+    def psychologist_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['psychologist_task'],
+        )
+
+    @task
+    def synthesis_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['synthesis_task'],
         )
 
     # --- 组装 Crew ---
