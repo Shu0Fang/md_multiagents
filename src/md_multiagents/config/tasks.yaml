@@ -21,11 +21,19 @@ extraction_task:
 
 primary_care_task:
   description: >-
-    分析数据提取专家提供的症状概况，从全科医学角度提供初步诊断意见。
+    请基于 extraction_task 的结构化输出，为患者提供全科视角初步诊断：
+    - 请列出可能可逆病因（reversible_causes）
+    - 提出需补充的检查项目（additional_tests）
+    - 给出转诊建议（referral_suggestions）
+    - 给出 AD 风险等级（risk_level: 低/中/高）
+    请严格按字段输出，不要输出无关段落。
   expected_output: >-
-    一段简短的初步诊断建议。
+    结构化字段结果，包含：
+    reversible_causes, additional_tests, referral_suggestions, risk_level
   agent: primary_care_agent
-  context: [extraction_task]
+  async_execution: true
+  context:
+    - extraction_task
   async_execution: true
 
 neurologist_task:
@@ -66,8 +74,29 @@ psychologist_task:
 
 synthesis_task:
   description: >-
-    综合各专科医生的诊断意见，给出最终的诊断结论。
+    请汇总以下五个专科任务的结构化输出，生成最终综合诊断结论：
+    - final_judgment: 综合判断 AD 疑似程度
+    - risk_level: 风险等级（低/中/高）
+    - recommended_tests: 推荐检查路径
+    - disagreement_points: 各专科意见差异
+    - next_steps: 下一步建议
+    - safety_notes: 安全提示
+    上游任务 context：
+    - primary_care_task
+    - neurologist_task
+    - geriatrician_task
+    - psychiatrist_task
+    - psychologist_task
+    请严格按上述字段输出 JSON，不输出额外段落。
   expected_output: >-
-    一段综合性的诊断结论。
+    结构化字段结果，包含：
+    final_judgment, risk_level, recommended_tests,
+    disagreement_points, next_steps, safety_notes
   agent: ad_specialist_agent
-  context: [primary_care_task, neurologist_task, geriatrician_task, psychiatrist_task, psychologist_task]
+  async_execution: false
+  context:
+    - primary_care_task
+    - neurologist_task
+    - geriatrician_task
+    - psychiatrist_task
+    - psychologist_task

@@ -1,4 +1,5 @@
 import sys
+import json
 from md_multiagents.crew import MdMultiagentsCrew
 
 def run():
@@ -21,7 +22,7 @@ def run():
     result = MdMultiagentsCrew().crew().kickoff(inputs=inputs)
     
     print("\n================ 最终会诊结果 ================\n")
-    print(result)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
 def train():
