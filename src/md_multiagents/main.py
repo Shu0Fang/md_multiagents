@@ -2,6 +2,29 @@ import sys
 import json
 from md_multiagents.crew import MdMultiagentsCrew
 
+
+def _print_result(result):
+    """Print Crew output safely: prefer structured JSON, then fall back to raw text."""
+    if isinstance(result, (dict, list)):
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return
+
+    json_dict = getattr(result, "json_dict", None)
+    if isinstance(json_dict, dict) and json_dict:
+        print(json.dumps(json_dict, indent=2, ensure_ascii=False))
+        return
+
+    raw = getattr(result, "raw", None)
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            print(json.dumps(parsed, indent=2, ensure_ascii=False))
+        except json.JSONDecodeError:
+            print(raw)
+        return
+
+    print(str(result))
+
 def run():
     """
     运行你的医疗会诊团队
@@ -22,7 +45,7 @@ def run():
     result = MdMultiagentsCrew().crew().kickoff(inputs=inputs)
     
     print("\n================ 最终会诊结果 ================\n")
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    _print_result(result)
 
 
 def train():

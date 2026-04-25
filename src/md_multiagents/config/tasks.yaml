@@ -12,6 +12,7 @@ extraction_task:
     - risk_signals: 高风险信号或红旗征象
     - missing_info: 仍缺失、需补充的信息
     请严格按上述字段逐项输出，不要输出无关段落。
+    必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
     结构化字段结果，包含：
     core_symptoms, onset_time, progression_speed, cognitive_domains,
@@ -38,38 +39,74 @@ primary_care_task:
 
 neurologist_task:
   description: >-
-    分析数据提取专家提供的症状概况，从神经学角度提供初步诊断意见。
+    请基于 extraction_task 的结构化输出，提供神经科视角的初步诊断。
+    输出字段：
+    - neurological_findings: 神经科发现与体征
+    - additional_tests: 需补充检查
+    - referral_suggestions: 转诊建议
+    - risk_level: AD 风险等级（低/中/高）
+    请严格按字段输出 JSON，不要输出无关段落。
+    必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
-    一段简短的初步诊断建议。
+    结构化字段结果，包含：
+    neurological_findings, additional_tests, referral_suggestions, risk_level
   agent: neurologist_agent
-  context: [extraction_task]
+  context:
+    - extraction_task
   async_execution: true
 
 geriatrician_task:
   description: >-
-    分析数据提取专家提供的症状概况，从老年医学角度提供初步诊断意见。
+    请基于 extraction_task 的结构化输出，提供老年医学视角的初步诊断。
+    输出字段：
+    - geriatric_findings: 老年医学发现与体征
+    - additional_tests: 需补充检查
+    - referral_suggestions: 转诊建议
+    - risk_level: AD 风险等级（低/中/高）
+    请严格按字段输出 JSON，不要输出无关段落。
+    必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
-    一段简短的初步诊断建议。
+    结构化字段结果，包含：
+    geriatric_findings, additional_tests, referral_suggestions, risk_level
   agent: geriatrician_agent
-  context: [extraction_task]
+  context:
+    - extraction_task
   async_execution: true
 
 psychiatrist_task:
   description: >-
-    分析数据提取专家提供的症状概况，从精神医学角度提供初步诊断意见。
+    请基于 extraction_task 的结构化输出，提供精神科视角的初步诊断。
+    输出字段：
+    - psychiatric_findings: 精神科发现与体征
+    - additional_tests: 需补充检查
+    - referral_suggestions: 转诊建议
+    - risk_level: AD 风险等级（低/中/高）
+    请严格按字段输出 JSON，不要输出无关段落。
+    必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
-    一段简短的初步诊断建议。
+    结构化字段结果，包含：
+    psychiatric_findings, additional_tests, referral_suggestions, risk_level
   agent: psychiatrist_agent
-  context: [extraction_task]
+  context:
+    - extraction_task
   async_execution: true
 
 psychologist_task:
   description: >-
-    分析数据提取专家提供的症状概况，从心理学角度提供初步诊断意见。
+    请基于 extraction_task 的结构化输出，提供心理学视角的初步诊断。
+    输出字段：
+    - psychological_findings: 心理学发现与体征
+    - additional_tests: 需补充检查
+    - referral_suggestions: 转诊建议
+    - risk_level: AD 风险等级（低/中/高）
+    请严格按字段输出 JSON，不要输出无关段落。
+    必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
-    一段简短的初步诊断建议。
+    结构化字段结果，包含：
+    psychological_findings, additional_tests, referral_suggestions, risk_level
   agent: psychologist_agent
-  context: [extraction_task]
+  context:
+    - extraction_task
   async_execution: true
 
 synthesis_task:
