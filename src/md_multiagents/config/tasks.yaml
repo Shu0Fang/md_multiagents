@@ -1,10 +1,23 @@
 extraction_task:
   description: >-
-    请阅读以下患者的纵向病历，提取出与阿尔茨海默病相关的具体症状清单。
+    请阅读以下患者的纵向病历，提取与阿尔茨海默病相关信息，并按固定字段输出。
     患者病历：{patient_record}
+    输出字段要求：
+    - core_symptoms: 核心症状列表
+    - onset_time: 起病时间与病程阶段
+    - progression_speed: 进展速度（缓慢/中等/快速）及依据
+    - cognitive_domains: 受损认知域（记忆/执行/语言/视空间/定向力等）
+    - behavioral_psychological: 精神行为症状
+    - functional_impairment: 日常功能受损情况
+    - risk_signals: 高风险信号或红旗征象
+    - missing_info: 仍缺失、需补充的信息
+    请严格按上述字段逐项输出，不要输出无关段落。
   expected_output: >-
-    一个清晰的时间序列概况，仅包含核心症状，不要多余废话。
+    结构化字段结果，包含：
+    core_symptoms, onset_time, progression_speed, cognitive_domains,
+    behavioral_psychological, functional_impairment, risk_signals, missing_info
   agent: data_extraction_agent
+  async_execution: false
 
 primary_care_task:
   description: >-
