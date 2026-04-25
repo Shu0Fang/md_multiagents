@@ -1,5 +1,6 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
+from md_multiagents.tools.rag_tool import RagTool
 
 @CrewBase
 class MdMultiagentsCrew():
@@ -21,6 +22,7 @@ class MdMultiagentsCrew():
     def primary_care_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['primary_care_agent'],
+            tools=[RagTool()],
             verbose=True
         )
 
@@ -28,6 +30,7 @@ class MdMultiagentsCrew():
     def neurologist_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['neurologist_agent'],
+            tools=[RagTool()],
             verbose=True
         )
 
@@ -35,6 +38,7 @@ class MdMultiagentsCrew():
     def geriatrician_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['geriatrician_agent'],
+            tools=[RagTool()],
             verbose=True
         )
 
@@ -42,6 +46,7 @@ class MdMultiagentsCrew():
     def psychiatrist_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['psychiatrist_agent'],
+            tools=[RagTool()],
             verbose=True
         )
 
@@ -49,6 +54,7 @@ class MdMultiagentsCrew():
     def psychologist_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['psychologist_agent'],
+            tools=[RagTool()],
             verbose=True
         )
 

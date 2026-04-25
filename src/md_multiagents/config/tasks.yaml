@@ -23,6 +23,7 @@ extraction_task:
 primary_care_task:
   description: >-
     请基于 extraction_task 的结构化输出，为患者提供全科视角初步诊断：
+    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
     - 请列出可能可逆病因（reversible_causes）
     - 提出需补充的检查项目（additional_tests）
     - 给出转诊建议（referral_suggestions）
@@ -40,6 +41,7 @@ primary_care_task:
 neurologist_task:
   description: >-
     请基于 extraction_task 的结构化输出，提供神经科视角的初步诊断。
+    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
     输出字段：
     - neurological_findings: 神经科发现与体征
     - additional_tests: 需补充检查
@@ -58,6 +60,7 @@ neurologist_task:
 geriatrician_task:
   description: >-
     请基于 extraction_task 的结构化输出，提供老年医学视角的初步诊断。
+    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
     输出字段：
     - geriatric_findings: 老年医学发现与体征
     - additional_tests: 需补充检查
@@ -76,6 +79,7 @@ geriatrician_task:
 psychiatrist_task:
   description: >-
     请基于 extraction_task 的结构化输出，提供精神科视角的初步诊断。
+    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
     输出字段：
     - psychiatric_findings: 精神科发现与体征
     - additional_tests: 需补充检查
@@ -94,6 +98,7 @@ psychiatrist_task:
 psychologist_task:
   description: >-
     请基于 extraction_task 的结构化输出，提供心理学视角的初步诊断。
+    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
     输出字段：
     - psychological_findings: 心理学发现与体征
     - additional_tests: 需补充检查
