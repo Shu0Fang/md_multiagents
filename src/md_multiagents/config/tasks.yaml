@@ -23,12 +23,14 @@ extraction_task:
 primary_care_task:
   description: >-
     请基于 extraction_task 的结构化输出，为患者提供全科视角初步诊断：
-    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
+    严格基于检索条目作答，不得引用未检索内容。
     输出中必须包含 evidence_chunks 字段，列出引用到的 chunk 文件名（如 chunk_012.txt）。
     - 请列出可能可逆病因（reversible_causes）
     - 提出需补充的检查项目（additional_tests）
     - 给出转诊建议（referral_suggestions）
     - 给出 AD 风险等级（risk_level: 低/中/高）
+    若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
     请严格按字段输出，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
@@ -42,13 +44,15 @@ primary_care_task:
 neurologist_task:
   description: >-
     请基于 extraction_task 的结构化输出，提供神经科视角的初步诊断。
-    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
+    严格基于检索条目作答，不得引用未检索内容。
     输出字段：
     - neurological_findings: 神经科发现与体征
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
     - risk_level: AD 风险等级（低/中/高）
     - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
+    若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
     请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
@@ -62,13 +66,15 @@ neurologist_task:
 geriatrician_task:
   description: >-
     请基于 extraction_task 的结构化输出，提供老年医学视角的初步诊断。
-    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
+    严格基于检索条目作答，不得引用未检索内容。
     输出字段：
     - geriatric_findings: 老年医学发现与体征
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
     - risk_level: AD 风险等级（低/中/高）
     - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
+    若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
     请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
@@ -82,13 +88,15 @@ geriatrician_task:
 psychiatrist_task:
   description: >-
     请基于 extraction_task 的结构化输出，提供精神科视角的初步诊断。
-    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
+    严格基于检索条目作答，不得引用未检索内容。
     输出字段：
     - psychiatric_findings: 精神科发现与体征
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
     - risk_level: AD 风险等级（低/中/高）
     - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
+    若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
     请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
@@ -102,13 +110,15 @@ psychiatrist_task:
 psychologist_task:
   description: >-
     请基于 extraction_task 的结构化输出，提供心理学视角的初步诊断。
-    请先调用 RAG Tool 检索相关指南条目，再据此生成结果。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
+    严格基于检索条目作答，不得引用未检索内容。
     输出字段：
     - psychological_findings: 心理学发现与体征
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
     - risk_level: AD 风险等级（低/中/高）
     - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
+    若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
     请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
@@ -122,6 +132,8 @@ psychologist_task:
 synthesis_task:
   description: >-
     请汇总以下五个专科任务的结构化输出，生成最终综合诊断结论：
+    请先使用已挂载的 RAG Tool 再次检索相关指南条目（top 5）做核对。
+    严格基于检索条目与上游任务作答，不得引用未检索内容。
     - final_judgment: 综合判断 AD 疑似程度
     - risk_level: 风险等级（低/中/高）
     - recommended_tests: 推荐检查路径
@@ -135,6 +147,7 @@ synthesis_task:
     - geriatrician_task
     - psychiatrist_task
     - psychologist_task
+    若某字段在检索结果与上游任务中都没有证据，请输出空列表 [] 或 "unknown"。
     请严格按上述字段输出 JSON，不输出额外段落。
   expected_output: >-
     结构化字段结果，包含：

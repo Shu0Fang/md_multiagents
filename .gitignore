@@ -27,6 +27,7 @@ logs/
 output/
 outputs/
 report.md
+knowledge/faiss_index/
 
 .DS_Store
 Thumbs.db

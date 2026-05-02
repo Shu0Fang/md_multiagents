@@ -47,6 +47,17 @@ def _validate_final_payload(payload):
     else:
         print("[INFO] 最终输出字段校验通过。")
 
+    evidence = payload.get("evidence_chunks")
+    if not isinstance(evidence, list) or not evidence:
+        print("[WARN] evidence_chunks 为空或格式不正确。")
+        return
+
+    invalid = [x for x in evidence if not isinstance(x, str) or not x.startswith("chunk_") or not x.endswith(".txt")]
+    if invalid:
+        print(f"[WARN] evidence_chunks 中存在非法条目: {invalid}")
+    else:
+        print("[INFO] evidence_chunks 格式校验通过。")
+
 
 def _print_result(result):
     """Print Crew output safely: prefer structured JSON, then fall back to raw text."""

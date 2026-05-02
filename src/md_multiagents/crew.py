@@ -62,6 +62,7 @@ class MdMultiagentsCrew():
     def ad_specialist_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['ad_specialist_agent'],
+            tools=[RagTool()],
             verbose=True
         )
 
