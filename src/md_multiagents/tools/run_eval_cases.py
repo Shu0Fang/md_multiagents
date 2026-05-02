@@ -1,4 +1,5 @@
 import json
+import re
 import traceback
 from pathlib import Path
 from typing import Any, Dict
@@ -8,6 +9,73 @@ from md_multiagents.crew import MdMultiagentsCrew
 
 TESTS_PATH = Path("tests") / "ad_eval_cases.json"
 RESULTS_PATH = Path("tests") / "eval_results.json"
+
+
+_PUNCTUATION_TO_STRIP = "\"'`：:，,。.;；!！?？()（）[]{}"
+
+
+def normalize_risk_level(value: Any) -> str | None:
+    """Normalize risk level strings across zh/en formats for stable comparison."""
+    if value is None:
+        return None
+
+    text = str(value).strip().strip(_PUNCTUATION_TO_STRIP).lower()
+    text = re.sub(r"\s+", "", text)
+
+    mapping = {
+        "低": "low",
+        "low": "low",
+        "中": "medium",
+        "中等": "medium",
+        "medium": "medium",
+        "moderate": "medium",
+        "高": "high",
+        "high": "high",
+        "信息不足": "insufficient",
+        "不足": "insufficient",
+        "insufficient": "insufficient",
+    }
+    return mapping.get(text, text or None)
+
+
+def parse_json_from_raw_text(raw_text: str) -> Dict[str, Any] | None:
+    """Parse JSON from raw text, supporting fenced code blocks and embedded object text."""
+    if not isinstance(raw_text, str) or not raw_text.strip():
+        return None
+
+    text = raw_text.strip()
+
+    # direct JSON parse
+    try:
+        obj = json.loads(text)
+        if isinstance(obj, dict):
+            return obj
+    except Exception:
+        pass
+
+    # markdown fenced JSON block
+    fence_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text, re.IGNORECASE)
+    if fence_match:
+        try:
+            obj = json.loads(fence_match.group(1))
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            pass
+
+    # fallback: first JSON-looking object substring
+    first = text.find("{")
+    last = text.rfind("}")
+    if first != -1 and last != -1 and first < last:
+        candidate = text[first : last + 1]
+        try:
+            obj = json.loads(candidate)
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            pass
+
+    return None
 
 
 def safe_extract_output(output: Any) -> Dict[str, Any]:
@@ -29,9 +97,9 @@ def safe_extract_output(output: Any) -> Dict[str, Any]:
     except Exception:
         result["raw"] = str(output)
 
-    # 2) Try to parse raw as JSON
+    # 2) Try to parse raw as JSON (with robust fallback)
     try:
-        parsed = json.loads(result["raw"]) if isinstance(result["raw"], str) else None
+        parsed = parse_json_from_raw_text(result["raw"]) if isinstance(result["raw"], str) else None
         result["json"] = parsed
     except Exception:
         result["json"] = None
@@ -98,25 +166,32 @@ def run_all_cases():
             parsed = safe_extract_output(output)
             entry["raw_output"] = parsed.get("raw")
 
-            predicted = extract_risk_level(parsed.get("json"), parsed.get("raw") or "")
-            # normalize some expected values (中文/英文)
-            if isinstance(expected, str):
-                exp_norm = expected.strip().lower()
-                map_norm = {"低": "low", "中": "medium", "高": "high", "信息不足": "insufficient", "信息不足": "insufficient"}
-                exp_norm = map_norm.get(exp_norm, exp_norm)
-            else:
-                exp_norm = expected
+            parse_errors = []
 
-            if isinstance(predicted, str):
-                pred_norm = predicted.strip().lower()
-            else:
-                pred_norm = predicted
+            # 1) structured result first
+            predicted = extract_risk_level(parsed.get("json"), parsed.get("raw") or "")
+
+            # 2) explicitly try extracting risk_level from raw_output JSON
+            if predicted is None and isinstance(entry["raw_output"], str):
+                raw_obj = parse_json_from_raw_text(entry["raw_output"])
+                if isinstance(raw_obj, dict):
+                    predicted = raw_obj.get("risk_level")
+                else:
+                    parse_errors.append("Unable to parse raw_output as JSON for risk_level extraction")
+
+            exp_norm = normalize_risk_level(expected)
+            pred_norm = normalize_risk_level(predicted)
 
             entry["predicted_risk_level"] = pred_norm
             # decide pass if both are not None and equal (allow simple synonyms)
             entry["pass_risk_level"] = bool(pred_norm is not None and exp_norm is not None and pred_norm == exp_norm)
 
-        except Exception as e:
+            if pred_norm is None:
+                parse_errors.append("predicted_risk_level is None after normalization")
+            if parse_errors:
+                entry["error"] = "; ".join(parse_errors)
+
+        except Exception:
             entry["error"] = traceback.format_exc()
 
         results.append(entry)
