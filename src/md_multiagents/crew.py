@@ -1,4 +1,6 @@
-from crewai import Agent, Crew, Process, Task
+import os
+
+from crewai import Agent, Crew, LLM, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 from md_multiagents.tools.rag_tool import RagTool
 
@@ -10,11 +12,16 @@ class MdMultiagentsCrew():
     agents_config = 'config/agents.yaml'
     tasks_config = 'config/tasks.yaml'
 
+    def _build_llm(self) -> LLM:
+        model_name = os.getenv("MODEL") or os.getenv("OPENAI_MODEL_NAME") or "gpt-4o"
+        return LLM(model=model_name, temperature=0)
+
     # --- 注册 Agent ---
     @agent
     def data_extraction_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['data_extraction_agent'],
+            llm=self._build_llm(),
             verbose=True
         )
 
@@ -22,6 +29,7 @@ class MdMultiagentsCrew():
     def primary_care_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['primary_care_agent'],
+            llm=self._build_llm(),
             tools=[RagTool()],
             verbose=True
         )
@@ -30,6 +38,7 @@ class MdMultiagentsCrew():
     def neurologist_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['neurologist_agent'],
+            llm=self._build_llm(),
             tools=[RagTool()],
             verbose=True
         )
@@ -38,6 +47,7 @@ class MdMultiagentsCrew():
     def geriatrician_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['geriatrician_agent'],
+            llm=self._build_llm(),
             tools=[RagTool()],
             verbose=True
         )
@@ -46,6 +56,7 @@ class MdMultiagentsCrew():
     def psychiatrist_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['psychiatrist_agent'],
+            llm=self._build_llm(),
             tools=[RagTool()],
             verbose=True
         )
@@ -54,6 +65,7 @@ class MdMultiagentsCrew():
     def psychologist_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['psychologist_agent'],
+            llm=self._build_llm(),
             tools=[RagTool()],
             verbose=True
         )
@@ -62,6 +74,7 @@ class MdMultiagentsCrew():
     def ad_specialist_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['ad_specialist_agent'],
+            llm=self._build_llm(),
             tools=[RagTool()],
             verbose=True
         )
