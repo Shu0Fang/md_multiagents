@@ -264,3 +264,4 @@ synthesis_task:
     - geriatrician_task
     - psychiatrist_task
     - psychologist_task
+
