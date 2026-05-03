@@ -22,20 +22,30 @@ extraction_task:
 
 primary_care_task:
   description: >-
-    请基于 extraction_task 的结构化输出，为患者提供全科视角初步诊断：
-    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
-    严格基于检索条目作答，不得引用未检索内容。
-    输出中必须包含 evidence_chunks 字段，列出引用到的 chunk 文件名（如 chunk_012.txt）。
-    - 请列出可能可逆病因（reversible_causes）
-    - 提出需补充的检查项目（additional_tests）
-    - 给出转诊建议（referral_suggestions）
-    - 给出 AD 风险等级（risk_level: 低/中/高）
+    请基于 `extraction_task` 的结构化输出，为患者提供全科（Primary Care）视角的初步诊断。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），严格基于检索条目与上游结构化结果作答，不得引用未检索内容。
+    注意：原先的“可逆病因优先”规则已收紧——不得仅因为未完成 TSH/B12/MRI 等检查就认定“更符合可逆因素解释”。
+    全科任务的额外职责：优先识别并强调明确的可逆病因线索（例如乏力/怕冷/便秘等甲减样症状；明确营养缺乏或 B12 缺乏证据；长期使用已知影响认知的药物；明显睡眠障碍或严重情绪障碍等）。仅当病史或 `extraction_task` 明确出现这些线索，且不存在 AD 红旗信号时，方可按可逆病因优先将 `risk_level` 设为 `low`。
+    正常老化 / 轻微主观认知下降规则：若仅表现为偶发轻微健忘、偶发找词困难、主观记忆变慢，且日常生活功能完全保留、能使用补偿策略（如日历、提醒工具）、无明确持续加重、无客观量表异常、无定向障碍/迷路、无行为精神症状、无神经系统体征，则应输出 `low`。
+    不得仅因为“记忆 + 找词困难”就认定为多个认知域明确受损；只有当这些问题表现为持续、反复、逐渐加重，或有 MoCA/MMSE 等客观证据支持，才可认为超出正常老化范围并考虑 `medium`。
+    分离判断与检查建议：在 `additional_tests`/`recommended_tests` 中可建议完成 TSH、B12、MRI 等排查，但“需要排查”本身不应成为将 `risk_level` 降为 `low` 或升为 `medium` 的充分理由。
+    输出中必须包含 `evidence_chunks` 字段，列出引用到的 chunk 文件名（如 chunk_012.txt）。
+    输出字段要求（必须且仅包含）：
+    - reversible_causes
+    - additional_tests
+    - referral_suggestions
+    - risk_level
+    - evidence_chunks
     若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
-    请严格按字段输出，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
-    结构化字段结果，包含：
-    reversible_causes, additional_tests, referral_suggestions, risk_level, evidence_chunks
+    结构化字段结果，包含：reversible_causes, additional_tests,
+    referral_suggestions, risk_level, evidence_chunks。
+    规则要点：
+    - 仅当 `extraction_task` 或病史明确存在可逆因素线索（见 description 中示例）且无红旗信号时，方可将 `risk_level` 设为 `low`；
+    - 若仅有偶发轻微健忘、偶发找词困难或主观记忆变慢，且功能完全保留、无客观异常和无持续加重证据，则应优先判 `low`，而不是 `medium`；
+    - 若存在持续 1 年以上记忆下降、家属明确观察且 MoCA/MMSE 存在边界/轻度异常，则应优先考虑 `medium`（即 MCI/前驱期），即使仍建议完成可逆因素筛查；
+    - 在 `additional_tests` 中建议 TSH、B12、叶酸、MRI 等，但“需要排查”不等于“已存在可逆因素解释”。
   agent: primary_care_agent
   async_execution: true
   context:
@@ -43,21 +53,27 @@ primary_care_task:
 
 neurologist_task:
   description: >-
-    请基于 extraction_task 的结构化输出，提供神经科视角的初步诊断。
-    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
-    严格基于检索条目作答，不得引用未检索内容。
+    请基于 `extraction_task` 的结构化输出，提供神经科视角的初步诊断。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），严格基于检索条目与上游结构化结果作答，不得引用未检索内容。
+    注意：可逆病因优先规则已收紧——不得仅因为缺少检查而认定可逆因素解释成立。只有在病史或 `extraction_task` 明确出现可逆因素线索（乏力/怕冷/便秘 等甲减样症状、营养缺乏线索、明确影响认知的长期用药、明显睡眠或情绪异常）且无红旗时，方可将 `risk_level` 设为 `low`。
+    正常老化 / 轻微主观认知下降规则：若仅有偶发轻微健忘、偶发找词困难、主观记忆变慢，且日常生活功能完全保留、可使用补偿策略、无明确持续加重、无客观量表异常、无定向障碍/迷路、无行为精神症状、无神经系统体征，则应输出 `low`。
+    不得仅因为“记忆 + 找词困难”就判定为多个认知域明确受损；只有当问题持续、反复、逐渐加重，或有 MoCA/MMSE 等客观证据支持时，才可考虑 `medium`。
     输出字段：
     - neurological_findings: 神经科发现与体征
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
-    - risk_level: AD 风险等级（低/中/高）
+    - risk_level: AD 风险等级（low/medium/high）
     - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
     若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
-    请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
-    结构化字段结果，包含：
-    neurological_findings, additional_tests, referral_suggestions, risk_level, evidence_chunks
+    结构化字段结果，包含：neurological_findings, additional_tests,
+    referral_suggestions, risk_level, evidence_chunks。
+    规则要点：
+    - 若病史或 `extraction_task` 明确出现可逆因素线索且无红旗，则 `risk_level` 可为 `low`；
+    - 若仅有偶发轻微健忘、偶发找词困难或主观记忆变慢，且功能完全保留、无客观异常和无持续加重证据，则应判 `low`；
+    - 若存在持续 1 年或以上记忆下降且有客观量表边界异常或家属明确持续观察，应优先判为 `medium`（MCI/前驱期）；
+    - 在 `additional_tests` 中建议 TSH/B12/MRI，但“需要排查”不应直接改变风险等级。
   agent: neurologist_agent
   context:
     - extraction_task
@@ -65,21 +81,27 @@ neurologist_task:
 
 geriatrician_task:
   description: >-
-    请基于 extraction_task 的结构化输出，提供老年医学视角的初步诊断。
-    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
-    严格基于检索条目作答，不得引用未检索内容。
+    请基于 `extraction_task` 的结构化输出，提供老年医学视角的初步诊断。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），严格基于检索条目与上游结构化结果作答，不得引用未检索内容。
+    注意：对老年患者的“可逆病因优先”适用条件需收紧。仅当病史或 `extraction_task` 明确记载可逆因素线索（如甲减样症状、B12缺乏体征、多药合并用药等）且无红旗信号，方可将 `risk_level` 设为 `low`。单纯未完成检查不可作为降低风险等级的理由。
+    正常老化 / 轻微主观认知下降规则：若仅有偶发轻微健忘、偶发找词困难或主观记忆变慢，且日常生活功能完全保留、可用日历/提醒等补偿策略、无明确持续加重、无客观量表异常、无定向障碍/迷路、无行为精神症状、无神经系统体征，则应输出 `low`。
+    不得仅因为“记忆 + 找词困难”就判定为多个认知域明确受损；只有当这些表现持续、反复、逐渐加重，或有客观量表异常时，才考虑 `medium`。
     输出字段：
     - geriatric_findings: 老年医学发现与体征
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
-    - risk_level: AD 风险等级（低/中/高）
+    - risk_level: AD 风险等级（low/medium/high）
     - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
     若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
-    请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
-    结构化字段结果，包含：
-    geriatric_findings, additional_tests, referral_suggestions, risk_level, evidence_chunks
+    结构化字段结果，包含：geriatric_findings, additional_tests,
+    referral_suggestions, risk_level, evidence_chunks。
+    规则要点：
+    - 单纯“尚未完成 TSH/B12/MRI 等检查”不足以判定 low；
+    - 若仅有偶发轻微健忘、偶发找词困难或主观记忆变慢，且功能完全保留、无客观异常和无持续加重证据，则应判 `low`；
+    - 若存在明确可逆因素线索且无红旗，方可判 low；
+    - 持续 1 年以上、家属确认且量表边界异常者，应优先判为 medium。
   agent: geriatrician_agent
   context:
     - extraction_task
@@ -87,21 +109,28 @@ geriatrician_task:
 
 psychiatrist_task:
   description: >-
-    请基于 extraction_task 的结构化输出，提供精神科视角的初步诊断。
-    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
-    严格基于检索条目作答，不得引用未检索内容。
+    请基于 `extraction_task` 的结构化输出，提供精神科视角的初步诊断。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），严格基于检索条目与上游结构化结果作答，不得引用未检索内容。
+    注意：情绪/睡眠/药物等可逆因素需有明确病史证据才能作为降低风险等级的充分依据。若仅为“待检查/需排查”而无明确病史线索，不得据此把 `risk_level` 降为 `low`。
+    当甲减样躯体症状明确存在时，应提示优先行代谢/内分泌检查并建议转诊内分泌/全科；当情绪或睡眠因素能充分解释认知问题且无红旗，可将 `risk_level` 设为 `low`（或至多 `medium`）。
+    正常老化 / 轻微主观认知下降规则：若仅有偶发轻微健忘、偶发找词困难或主观记忆变慢，且日常生活功能完全保留、可使用补偿策略、无明确持续加重、无客观量表异常、无行为精神症状、无定向障碍/迷路、无神经系统体征，则应输出 `low`。
+    不得仅因为“记忆 + 找词困难”就判定为多个认知域明确受损；只有当这些问题持续、反复、逐渐加重，或有 MoCA/MMSE 等客观证据支持时，才可输出 `medium`。
     输出字段：
     - psychiatric_findings: 精神科发现与体征
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
-    - risk_level: AD 风险等级（低/中/高）
+    - risk_level: AD 风险等级（low/medium/high）
     - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
     若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
-    请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
-    结构化字段结果，包含：
-    psychiatric_findings, additional_tests, referral_suggestions, risk_level, evidence_chunks
+    结构化字段结果，包含：psychiatric_findings, additional_tests,
+    referral_suggestions, risk_level, evidence_chunks。
+    规则要点：
+    - 仅当病史或 `extraction_task` 明确存在情绪/睡眠/药物等可逆因素线索且无红旗时，方可判 `low`；
+    - 若仅有偶发轻微健忘、偶发找词困难或主观记忆变慢，且功能完全保留、无客观异常和无持续加重证据，则应判 `low`；
+    - 若仅为“需排查”而无明确病史证据，不应降为 `low`；
+    - 若存在持续 1 年以上记忆下降且 MoCA/MMSE 存在边界异常，应倾向判 `medium`。
   agent: psychiatrist_agent
   context:
     - extraction_task
@@ -109,21 +138,27 @@ psychiatrist_task:
 
 psychologist_task:
   description: >-
-    请基于 extraction_task 的结构化输出，提供心理学视角的初步诊断。
-    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），再据此生成结果。
-    严格基于检索条目作答，不得引用未检索内容。
+    请基于 `extraction_task` 的结构化输出，提供心理学视角的初步诊断。
+    请先使用已挂载的 RAG Tool 检索相关指南条目（top 5），严格基于检索条目与上游结构化结果作答，不得引用未检索内容。
+    注意：可逆因素认定需有明确病史证据。仅因尚未完成检查而将风险降为 `low` 是不允许的。若病史明确存在情绪/睡眠/药物等可逆因素且无红旗，可将 `risk_level` 判为 `low`。
+    正常老化 / 轻微主观认知下降规则：若仅有偶发轻微健忘、偶发找词困难或主观记忆变慢，且日常生活功能完全保留、可使用补偿策略、无明确持续加重、无客观量表异常、无行为精神症状、无定向障碍/迷路、无神经系统体征，则应输出 `low`。
+    不得仅因为“记忆 + 找词困难”就判定为多个认知域明确受损；只有当这些问题持续、反复、逐渐加重，或有客观测评支持时，才可考虑 `medium`。
     输出字段：
     - psychological_findings: 心理学发现与体征
     - additional_tests: 需补充检查
     - referral_suggestions: 转诊建议
-    - risk_level: AD 风险等级（低/中/高）
+    - risk_level: AD 风险等级（low/medium/high）
     - evidence_chunks: 引用到的指南 chunk 文件名列表（如 chunk_012.txt）
     若某字段在检索结果中没有证据，请输出空列表 [] 或 "unknown"。
-    请严格按字段输出 JSON，不要输出无关段落。
     必须输出单个 JSON object，禁止 markdown 代码块，禁止列表前缀符号（如 -、*、1.）。
   expected_output: >-
-    结构化字段结果，包含：
-    psychological_findings, additional_tests, referral_suggestions, risk_level, evidence_chunks
+    结构化字段结果，包含：psychological_findings, additional_tests,
+    referral_suggestions, risk_level, evidence_chunks。
+    规则要点：
+    - 仅当病史或 `extraction_task` 明确有可逆因素线索且无红旗时，可判 `low`；
+    - 若仅有偶发轻微健忘、偶发找词困难或主观记忆变慢，且功能完全保留、无客观异常和无持续加重证据，则应判 `low`；
+    - 若存在持续 1 年以上且有客观量表边界异常，或家属明确持续观察，应倾向判 `medium`；
+    - 在 `additional_tests` 中建议标准可逆因素与认知评估检查，但“需排查”不等于“已解释”。
   agent: psychologist_agent
   context:
     - extraction_task
@@ -131,28 +166,62 @@ psychologist_task:
 
 synthesis_task:
   description: >-
-    请汇总以下五个专科任务的结构化输出，生成最终综合诊断结论：
+    请汇总以下五个专科任务的结构化输出，生成最终综合诊断结论。
     请先使用已挂载的 RAG Tool 再次检索相关指南条目（top 5）做核对。
     严格基于检索条目与上游任务作答，不得引用未检索内容。
-    - final_judgment: 综合判断 AD 疑似程度
-    - risk_level: 风险等级（低/中/高）
-    - recommended_tests: 推荐检查路径
-    - disagreement_points: 各专科意见差异
-    - next_steps: 下一步建议
-    - safety_notes: 安全提示
-    - evidence_chunks: 最终结论引用到的 chunk 文件名列表（需汇总上游证据）
-    上游任务 context：
-    - primary_care_task
-    - neurologist_task
-    - geriatrician_task
-    - psychiatrist_task
-    - psychologist_task
+
+    你必须按下面规则判断信息充分性与风险分级（强约束）：
+
+    0) 首先区分“病史信息不足”和“检查信息不足”：
+       - 病史信息不足：缺少起病时间、症状性质、进展速度、具体认知域、日常生活功能、知情者描述、伴随症状等，导致无法形成初步判断。
+       - 检查信息不足：缺少 MMSE/MoCA、MRI、血液化验、ADL/IADL、NPI 等检查结果。
+       若只是检查信息不足，但病史已经显示明确临床模式，不得输出 `insufficient`，应根据当前病史进行初步风险分级，并在 `recommended_tests` / `next_steps` 中建议补充检查。
+
+    1) 若病史本身严重不足，例如仅有“记性不好”“认知下降”“最近糊涂”等笼统描述，缺少起病时间、进展速度、具体认知域、日常生活功能和伴随症状，无法判断风险，必须输出 `insufficient`。
+       注意：`insufficient` 只用于病史不足导致无法初步分层，不用于单纯缺少量表、影像或化验结果的情况。
+
+    2) 若存在红旗信号，包括快速进展、明显日常生活功能下降、空间定向障碍/迷路、走失风险、明确神经系统体征、脑血管事件、偏瘫、步态异常、肌阵挛、癫痫或意识障碍等，应输出 `high`。
+       若多个专科均提示高风险，或上游任务一致认为存在明显痴呆/快速进展/血管性认知障碍高危模式，也应输出 `high`。
+
+    3) 若认知下降更符合明确可逆因素解释，例如甲状腺功能减退样症状（乏力、怕冷、便秘等）、维生素B12缺乏线索、明显药物影响、严重睡眠障碍或情绪因素，且不存在 AD 典型高危特征或红旗信号，应输出 `low`，并在 `next_steps` 中建议优先排查和纠正可逆病因。
+       注意：此类病例即使缺少 MMSE/MoCA、MRI、血液化验结果，也不应因“检查不足”而输出 `insufficient`。
+       注意：如果可逆因素足以解释认知下降，且没有明确进行性加重、空间定向障碍或日常生活功能下降，不应输出 `medium` 或 `high`。
+
+    4) 若仅有偶发轻微健忘、偶发找词困难、主观记忆变慢，且日常生活功能完全保留，无明确持续进展、无行为精神症状、无定向障碍/迷路、无功能下降、无神经系统体征，应输出 `low`。
+       注意：单纯“家属觉得记忆有点变慢”不足以判为 `medium`，除非同时存在持续加重、客观量表异常、明确多个认知域受损或日常生活功能受影响。
+       注意：正常老化或轻微主观认知下降不应被过度判定为 AD 中高风险。
+
+    5) 仅当存在较明确的轻度认知下降或疑似 MCI，且满足以下至少一项时，才输出 `medium`：
+       - 有客观认知量表异常或边界异常，例如 MoCA/MMSE 提示轻度异常；
+       - 家属明确描述持续性、反复性、逐渐加重的认知问题；
+       - 存在多个认知域受损，但日常生活功能仍基本保留；
+       - 可逆因素可能存在，但不能充分解释认知下降；
+       - 上游多个专科均提示需要进一步认知障碍专科评估，但尚无 high 所需的红旗信号。
+       注意：`medium` 代表需要进一步评估的轻度/前驱期风险，不代表已经达到痴呆或高危状态。
+
+    6) 以上规则按序综合执行，但不要机械地因为“缺少检查结果”就触发 `insufficient`。
+       若规则冲突，优先考虑：病史是否足以初步分层、是否存在红旗信号、是否存在可逆解释、是否存在功能损害。
+       最终 `risk_level` 必须能被 `final_judgment` 中的文字解释清楚。
+
+    输出字段必须且仅包含：
+    - final_judgment
+    - risk_level
+    - recommended_tests
+    - disagreement_points
+    - next_steps
+    - safety_notes
+    - evidence_chunks
+
+    `risk_level` 只能是以下四者之一：high, medium, low, insufficient。
     若某字段在检索结果与上游任务中都没有证据，请输出空列表 [] 或 "unknown"。
-    请严格按上述字段输出 JSON，不输出额外段落。
+    最终输出必须是单个 JSON object，不要输出 markdown 代码块，不要输出额外段落。
   expected_output: >-
-    结构化字段结果，包含：
-    final_judgment, risk_level, recommended_tests,
-    disagreement_points, next_steps, safety_notes, evidence_chunks
+    单个 JSON object，且仅包含字段：final_judgment, risk_level,
+    recommended_tests, disagreement_points, next_steps, safety_notes,
+    evidence_chunks。
+    `risk_level` 必须严格为 high/medium/low/insufficient 之一。
+    请遵守优先级约束（见 description），并在 `next_steps` 中对可逆因素给出优先排查建议（若适用）。
+    不得输出 markdown 代码块，不得输出额外字段。
   agent: ad_specialist_agent
   async_execution: false
   context:

@@ -1,14 +1,15 @@
+import argparse
 import json
 import re
 import traceback
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from md_multiagents.crew import MdMultiagentsCrew
 
 
 TESTS_PATH = Path("tests") / "ad_eval_cases.json"
-RESULTS_PATH = Path("tests") / "eval_results.json"
+DEFAULT_RESULTS_PATH = Path("tests") / "eval_results.json"
 
 
 _PUNCTUATION_TO_STRIP = "\"'`：:，,。.;；!！?？()（）[]{}"
@@ -136,7 +137,7 @@ def extract_risk_level(parsed_json: Any, raw_text: str) -> Any:
     return None
 
 
-def run_all_cases():
+def run_all_cases(case_id: Optional[str] = None, limit: Optional[int] = None, output: Optional[str] = None, repeat: int = 1):
     if not TESTS_PATH.exists():
         print(f"Test file not found: {TESTS_PATH}")
         return
@@ -144,16 +145,29 @@ def run_all_cases():
     with TESTS_PATH.open("r", encoding="utf-8") as f:
         cases = json.load(f)
 
-    crew = MdMultiagentsCrew().crew()
+    # filter by case_id if provided
+    if case_id:
+        cases = [c for c in cases if (c.get("case_id") or c.get("id")) == case_id]
+        if not cases:
+            print(f"No test case found with case_id={case_id}")
+            return
+
+    # apply limit
+    if limit is not None and isinstance(limit, int):
+        cases = cases[:limit]
+
+    results_path = Path(output) if output else DEFAULT_RESULTS_PATH
 
     results = []
     for case in cases:
-        case_id = case.get("case_id") or case.get("id")
+        case_id_val = case.get("case_id") or case.get("id")
         patient_record = case.get("patient_record", "")
         expected = case.get("expected_risk_level")
 
+        print(f"[CASE_START] case_id={case_id_val}")
+
         entry: Dict[str, Any] = {
-            "case_id": case_id,
+            "case_id": case_id_val,
             "expected_risk_level": expected,
             "predicted_risk_level": None,
             "pass_risk_level": False,
@@ -162,32 +176,59 @@ def run_all_cases():
         }
 
         try:
-            output = crew.kickoff(inputs={"patient_record": patient_record})
-            parsed = safe_extract_output(output)
-            entry["raw_output"] = parsed.get("raw")
-
+            # allow repeating runs for the same case to measure variability
+            repeat_count = int(repeat) if isinstance(repeat, int) and repeat > 0 else 1
+            runs = []
+            preds = []
             parse_errors = []
 
-            # 1) structured result first
-            predicted = extract_risk_level(parsed.get("json"), parsed.get("raw") or "")
+            for attempt in range(repeat_count):
+                try:
+                    print(f"[CASE_RUN] case_id={case_id_val} attempt={attempt+1}/{repeat_count}")
+                    # Build a fresh crew per attempt to avoid cross-case/context leakage.
+                    crew = MdMultiagentsCrew().crew()
+                    output = crew.kickoff(inputs={"patient_record": patient_record})
+                    parsed = safe_extract_output(output)
+                    raw_out = parsed.get("raw")
 
-            # 2) explicitly try extracting risk_level from raw_output JSON
-            if predicted is None and isinstance(entry["raw_output"], str):
-                raw_obj = parse_json_from_raw_text(entry["raw_output"])
-                if isinstance(raw_obj, dict):
-                    predicted = raw_obj.get("risk_level")
-                else:
-                    parse_errors.append("Unable to parse raw_output as JSON for risk_level extraction")
+                    # try to extract structured risk from parsed json or raw
+                    predicted = extract_risk_level(parsed.get("json"), raw_out or "")
+                    if predicted is None and isinstance(raw_out, str):
+                        raw_obj = parse_json_from_raw_text(raw_out)
+                        if isinstance(raw_obj, dict):
+                            predicted = raw_obj.get("risk_level")
+
+                    pred_norm = normalize_risk_level(predicted)
+
+                    runs.append({
+                        "attempt": attempt + 1,
+                        "predicted_raw": predicted,
+                        "predicted": pred_norm,
+                        "raw_output": raw_out,
+                        "error": None,
+                    })
+                    preds.append(pred_norm)
+                except Exception:
+                    runs.append({
+                        "attempt": attempt + 1,
+                        "predicted_raw": None,
+                        "predicted": None,
+                        "raw_output": None,
+                        "error": traceback.format_exc(),
+                    })
+
+            # populate summary fields
+            entry["runs"] = runs
+            entry["predicted_risk_levels"] = preds
+            entry["predicted_risk_level"] = preds[0] if preds else None
 
             exp_norm = normalize_risk_level(expected)
-            pred_norm = normalize_risk_level(predicted)
+            # consider pass only if all runs match expected (None-safe)
+            entry["pass_risk_level"] = bool(preds and exp_norm is not None and all(p == exp_norm for p in preds))
 
-            entry["predicted_risk_level"] = pred_norm
-            # decide pass if both are not None and equal (allow simple synonyms)
-            entry["pass_risk_level"] = bool(pred_norm is not None and exp_norm is not None and pred_norm == exp_norm)
-
-            if pred_norm is None:
-                parse_errors.append("predicted_risk_level is None after normalization")
+            # collect parse-level errors
+            if not preds or any(p is None for p in preds):
+                parse_errors.append("predicted_risk_level is None for one or more runs after normalization")
             if parse_errors:
                 entry["error"] = "; ".join(parse_errors)
 
@@ -195,15 +236,25 @@ def run_all_cases():
             entry["error"] = traceback.format_exc()
 
         results.append(entry)
-        print(json.dumps({"case_id": case_id, "predicted": entry["predicted_risk_level"], "pass": entry["pass_risk_level"]}, ensure_ascii=False))
+        print(json.dumps({"case_id": case_id_val, "predicted": entry["predicted_risk_level"], "pass": entry["pass_risk_level"]}, ensure_ascii=False))
 
     # save results
-    RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with RESULTS_PATH.open("w", encoding="utf-8") as f:
+    results_path.parent.mkdir(parents=True, exist_ok=True)
+    with results_path.open("w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
 
-    print(f"Saved results to {RESULTS_PATH}")
+    print(f"Saved results to {results_path}")
+
+
+def _parse_args():
+    p = argparse.ArgumentParser(description="Run AD eval cases (batch) with optional filters to reduce API usage.")
+    p.add_argument("--case-id", dest="case_id", help="Run only the case with this case_id")
+    p.add_argument("--limit", dest="limit", type=int, help="Limit to first N cases")
+    p.add_argument("--output", dest="output", help="Output results file path (default: tests/eval_results.json)")
+    p.add_argument("--repeat", dest="repeat", type=int, default=1, help="Repeat each case N times to measure output variability")
+    return p.parse_args()
 
 
 if __name__ == "__main__":
-    run_all_cases()
+    args = _parse_args()
+    run_all_cases(case_id=args.case_id, limit=args.limit, output=args.output, repeat=args.repeat)
