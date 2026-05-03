@@ -10,6 +10,7 @@ from md_multiagents.crew import MdMultiagentsCrew
 
 TESTS_PATH = Path("tests") / "ad_eval_cases.json"
 DEFAULT_RESULTS_PATH = Path("tests") / "eval_results.json"
+DEFAULT_SUMMARY_PATH = Path("tests") / "eval_summary.json"
 
 
 _PUNCTUATION_TO_STRIP = "\"'`：:，,。.;；!！?？()（）[]{}"
@@ -137,7 +138,55 @@ def extract_risk_level(parsed_json: Any, raw_text: str) -> Any:
     return None
 
 
-def run_all_cases(case_id: Optional[str] = None, limit: Optional[int] = None, output: Optional[str] = None, repeat: int = 1):
+def _empty_level_stats() -> Dict[str, int]:
+    return {"passed": 0, "total": 0}
+
+
+def build_summary(results: list[Dict[str, Any]]) -> Dict[str, Any]:
+    level_order = ["high", "medium", "low", "insufficient"]
+    by_level: Dict[str, Dict[str, int]] = {level: _empty_level_stats() for level in level_order}
+
+    failed_cases = []
+    passed_total = 0
+
+    for entry in results:
+        expected_level = normalize_risk_level(entry.get("expected_risk_level"))
+        if expected_level not in by_level:
+            by_level[expected_level or "unknown"] = _empty_level_stats()
+            expected_level = expected_level or "unknown"
+
+        by_level[expected_level]["total"] += 1
+        if entry.get("pass_risk_level"):
+            by_level[expected_level]["passed"] += 1
+            passed_total += 1
+        else:
+            failed_cases.append(
+                {
+                    "case_id": entry.get("case_id"),
+                    "expected": entry.get("expected_risk_level"),
+                    "predicted": entry.get("predicted_risk_level"),
+                }
+            )
+
+    total = len(results)
+    accuracy = round(passed_total / total, 6) if total else 0.0
+
+    return {
+        "total": total,
+        "passed": passed_total,
+        "accuracy": accuracy,
+        "by_level": by_level,
+        "failed_cases": failed_cases,
+    }
+
+
+def run_all_cases(
+    case_id: Optional[str] = None,
+    limit: Optional[int] = None,
+    output: Optional[str] = None,
+    repeat: int = 1,
+    summary_output: Optional[str] = None,
+):
     if not TESTS_PATH.exists():
         print(f"Test file not found: {TESTS_PATH}")
         return
@@ -157,6 +206,7 @@ def run_all_cases(case_id: Optional[str] = None, limit: Optional[int] = None, ou
         cases = cases[:limit]
 
     results_path = Path(output) if output else DEFAULT_RESULTS_PATH
+    summary_path = Path(summary_output) if summary_output else DEFAULT_SUMMARY_PATH
 
     results = []
     for case in cases:
@@ -243,7 +293,16 @@ def run_all_cases(case_id: Optional[str] = None, limit: Optional[int] = None, ou
     with results_path.open("w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
 
+    summary = build_summary(results)
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    with summary_path.open("w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2)
+
     print(f"Saved results to {results_path}")
+    print(f"Saved summary to {summary_path}")
+    print(
+        f"Summary: total={summary['total']}, passed={summary['passed']}, accuracy={summary['accuracy']:.3f}"
+    )
 
 
 def _parse_args():
@@ -251,10 +310,21 @@ def _parse_args():
     p.add_argument("--case-id", dest="case_id", help="Run only the case with this case_id")
     p.add_argument("--limit", dest="limit", type=int, help="Limit to first N cases")
     p.add_argument("--output", dest="output", help="Output results file path (default: tests/eval_results.json)")
+    p.add_argument(
+        "--summary-output",
+        dest="summary_output",
+        help="Summary output file path (default: tests/eval_summary.json)",
+    )
     p.add_argument("--repeat", dest="repeat", type=int, default=1, help="Repeat each case N times to measure output variability")
     return p.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    run_all_cases(case_id=args.case_id, limit=args.limit, output=args.output, repeat=args.repeat)
+    run_all_cases(
+        case_id=args.case_id,
+        limit=args.limit,
+        output=args.output,
+        repeat=args.repeat,
+        summary_output=args.summary_output,
+    )

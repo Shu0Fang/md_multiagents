@@ -52,3 +52,24 @@ For support, questions, or feedback regarding the MdMultiagents Crew or crewAI.
 - [Chat with our docs](https://chatg.pt/DWjSBZn)
 
 Let's create wonders together with the power and simplicity of crewAI.
+
+## 阶段性成果
+
+当前这个项目已经从最初的模板，推进到了一个用于 AD 风险评估的多智能体 MVP：
+
+- 当前目标：AD 风险评估多智能体 MVP
+- 当前流程：extraction -> 5 specialist agents -> synthesis
+- 知识库：关键词 RAG，基于 ad_chunks
+- 评测集：8 个模拟 case
+- 当前结果：8/8 risk_level 通过
+
+## 已知限制
+
+虽然当前评测已经全部通过，但这个版本仍然有一些明确限制：
+
+- 这是阶段性验证，不是医学真实世界验证
+- 测试集规模很小，只有 8 个模拟 case
+- 目前的 RAG 还是关键词检索，不是向量检索
+- 模型输出仍然存在一定随机性，边界病例可能需要重复验证
+
+后续如果要继续增强，可以再逐步补充更大规模的测试集、向量检索、结构化输出追踪以及更严格的回归评测。
