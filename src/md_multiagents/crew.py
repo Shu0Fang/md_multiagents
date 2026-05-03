@@ -13,8 +13,16 @@ class MdMultiagentsCrew():
     tasks_config = 'config/tasks.yaml'
 
     def _build_llm(self) -> LLM:
-        model_name = os.getenv("MODEL") or os.getenv("OPENAI_MODEL_NAME") or "gpt-4o"
-        return LLM(model=model_name, temperature=0)
+        model_name = os.getenv("MODEL") or os.getenv("OPENAI_MODEL_NAME") or "deepseek-chat"
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_API_BASE") or os.getenv("OPENAI_BASE_URL")
+
+        return LLM(
+            model=model_name,
+            api_key=api_key,
+            base_url=base_url,
+            temperature=0,
+        )
 
     # --- 注册 Agent ---
     @agent
