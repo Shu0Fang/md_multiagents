@@ -30,4 +30,4 @@ report.md
 knowledge/faiss_index/
 
 .DS_Store
-Thumbs.db
+Thumbs.db/tests/

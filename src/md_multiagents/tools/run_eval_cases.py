@@ -11,6 +11,7 @@ from md_multiagents.crew import MdMultiagentsCrew
 TESTS_PATH = Path("tests") / "ad_eval_cases.json"
 DEFAULT_RESULTS_PATH = Path("tests") / "eval_results.json"
 DEFAULT_SUMMARY_PATH = Path("tests") / "eval_summary.json"
+DEFAULT_CACHE_PATH = Path("tests") / "eval_cache.json"
 
 
 _PUNCTUATION_TO_STRIP = "\"'`：:，,。.;；!！?？()（）[]{}"
@@ -186,6 +187,8 @@ def run_all_cases(
     output: Optional[str] = None,
     repeat: int = 1,
     summary_output: Optional[str] = None,
+    use_cache: bool = False,
+    force_cache: bool = False,
 ):
     if not TESTS_PATH.exists():
         print(f"Test file not found: {TESTS_PATH}")
@@ -207,6 +210,15 @@ def run_all_cases(
 
     results_path = Path(output) if output else DEFAULT_RESULTS_PATH
     summary_path = Path(summary_output) if summary_output else DEFAULT_SUMMARY_PATH
+
+    # load cache if requested
+    cache: Dict[str, Any] = {}
+    if use_cache and DEFAULT_CACHE_PATH.exists():
+        try:
+            with DEFAULT_CACHE_PATH.open("r", encoding="utf-8") as cf:
+                cache = json.load(cf)
+        except Exception:
+            cache = {}
 
     results = []
     for case in cases:
@@ -232,45 +244,91 @@ def run_all_cases(
             preds = []
             parse_errors = []
 
-            for attempt in range(repeat_count):
-                try:
-                    print(f"[CASE_RUN] case_id={case_id_val} attempt={attempt+1}/{repeat_count}")
-                    # Build a fresh crew per attempt to avoid cross-case/context leakage.
-                    crew = MdMultiagentsCrew().crew()
-                    output = crew.kickoff(inputs={"patient_record": patient_record})
-                    parsed = safe_extract_output(output)
-                    raw_out = parsed.get("raw")
+            # check cache for this case
+            cached_for_case = cache.get(case_id_val) if isinstance(cache, dict) else None
+            cached_runs = None
+            if cached_for_case and isinstance(cached_for_case, dict):
+                # validate patient_record matches and cached has runs
+                if cached_for_case.get("patient_record") == patient_record and isinstance(cached_for_case.get("runs"), list):
+                    cached_runs = cached_for_case.get("runs")
 
-                    # try to extract structured risk from parsed json or raw
-                    predicted = extract_risk_level(parsed.get("json"), raw_out or "")
-                    if predicted is None and isinstance(raw_out, str):
-                        raw_obj = parse_json_from_raw_text(raw_out)
-                        if isinstance(raw_obj, dict):
-                            predicted = raw_obj.get("risk_level")
-
-                    pred_norm = normalize_risk_level(predicted)
-
+            # if cache fully satisfies request and not forced, reuse
+            if use_cache and cached_runs and len(cached_runs) >= repeat_count and not force_cache:
+                print(f"[CACHE HIT] case_id={case_id_val} using {repeat_count} cached runs")
+                for attempt_idx in range(repeat_count):
+                    cr = cached_runs[attempt_idx]
+                    pred_norm = normalize_risk_level(cr.get("predicted"))
                     runs.append({
-                        "attempt": attempt + 1,
-                        "predicted_raw": predicted,
+                        "attempt": attempt_idx + 1,
+                        "predicted_raw": cr.get("predicted_raw"),
                         "predicted": pred_norm,
-                        "raw_output": raw_out,
-                        "error": None,
+                        "raw_output": cr.get("raw_output"),
+                        "error": cr.get("error"),
                     })
                     preds.append(pred_norm)
-                except Exception:
-                    runs.append({
-                        "attempt": attempt + 1,
-                        "predicted_raw": None,
-                        "predicted": None,
-                        "raw_output": None,
-                        "error": traceback.format_exc(),
-                    })
+            else:
+                # we may be able to reuse some cached attempts to avoid re-running
+                if use_cache and cached_runs and not force_cache:
+                    # seed with available cached runs (up to repeat_count)
+                    for i, cr in enumerate(cached_runs):
+                        if i >= repeat_count:
+                            break
+                        pn = normalize_risk_level(cr.get("predicted"))
+                        runs.append({
+                            "attempt": i + 1,
+                            "predicted_raw": cr.get("predicted_raw"),
+                            "predicted": pn,
+                            "raw_output": cr.get("raw_output"),
+                            "error": cr.get("error"),
+                        })
+                        preds.append(pn)
+
+                for attempt in range(len(runs), repeat_count):
+                    try:
+                        print(f"[CASE_RUN] case_id={case_id_val} attempt={attempt+1}/{repeat_count}")
+                        # Build a fresh crew per attempt to avoid cross-case/context leakage.
+                        crew = MdMultiagentsCrew().crew()
+                        output = crew.kickoff(inputs={"patient_record": patient_record})
+                        parsed = safe_extract_output(output)
+                        raw_out = parsed.get("raw")
+
+                        # try to extract structured risk from parsed json or raw
+                        predicted = extract_risk_level(parsed.get("json"), raw_out or "")
+                        if predicted is None and isinstance(raw_out, str):
+                            raw_obj = parse_json_from_raw_text(raw_out)
+                            if isinstance(raw_obj, dict):
+                                predicted = raw_obj.get("risk_level")
+
+                        pred_norm = normalize_risk_level(predicted)
+
+                        runs.append({
+                            "attempt": attempt + 1,
+                            "predicted_raw": predicted,
+                            "predicted": pred_norm,
+                            "raw_output": raw_out,
+                            "error": None,
+                        })
+                        preds.append(pred_norm)
+                    except Exception:
+                        runs.append({
+                            "attempt": attempt + 1,
+                            "predicted_raw": None,
+                            "predicted": None,
+                            "raw_output": None,
+                            "error": traceback.format_exc(),
+                        })
 
             # populate summary fields
             entry["runs"] = runs
             entry["predicted_risk_levels"] = preds
             entry["predicted_risk_level"] = preds[0] if preds else None
+
+            # update cache for this case
+            if use_cache:
+                try:
+                    cache[case_id_val] = {"patient_record": patient_record, "runs": runs}
+                except Exception:
+                    pass
 
             exp_norm = normalize_risk_level(expected)
             # consider pass only if all runs match expected (None-safe)
@@ -292,6 +350,16 @@ def run_all_cases(
     results_path.parent.mkdir(parents=True, exist_ok=True)
     with results_path.open("w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
+
+    # persist cache
+    if use_cache:
+        try:
+            DEFAULT_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with DEFAULT_CACHE_PATH.open("w", encoding="utf-8") as cf:
+                json.dump(cache, cf, ensure_ascii=False, indent=2)
+            print(f"Saved cache to {DEFAULT_CACHE_PATH}")
+        except Exception:
+            print("Warning: failed to save cache file")
 
     summary = build_summary(results)
     summary_path.parent.mkdir(parents=True, exist_ok=True)
@@ -316,6 +384,8 @@ def _parse_args():
         help="Summary output file path (default: tests/eval_summary.json)",
     )
     p.add_argument("--repeat", dest="repeat", type=int, default=1, help="Repeat each case N times to measure output variability")
+    p.add_argument("--use-cache", dest="use_cache", action="store_true", help="Use on-disk cache to reuse previous runs (tests/eval_cache.json)")
+    p.add_argument("--force", dest="force", action="store_true", help="Force re-run even if cache exists")
     return p.parse_args()
 
 
@@ -327,4 +397,6 @@ if __name__ == "__main__":
         output=args.output,
         repeat=args.repeat,
         summary_output=args.summary_output,
+        use_cache=getattr(args, "use_cache", False),
+        force_cache=getattr(args, "force", False),
     )
