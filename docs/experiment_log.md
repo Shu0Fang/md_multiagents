@@ -1,3 +1,21 @@
+运行方式
+
+默认评测 20-case：
+
+./.venv/bin/python -m md_multiagents.tools.run_eval_cases \  --cases-file tests/ad_eval_cases.json \  --output tests/eval_results.json \  --summary-output tests/eval_summary.json
+跑单个 case：
+
+./.venv/bin/python -m md_multiagents.tools.run_eval_cases \  --cases-file tests/ad_eval_cases.json \  --case-id AD-019 \  --output tests/eval_AD019.json \  --summary-output tests/eval_summary.json
+跑 baseline：
+
+./.venv/bin/python -m md_multiagents.tools.run_eval_cases \  --cases-file tests/baselinecase.json \  --case-id AD-001 \  --output tests/eval_baseline_AD001.json \  --summary-output tests/eval_summary.json
+如果要重复测稳定性或复用缓存，可以加上：
+
+  --repeat 3 --use-cache
+如果要强制重跑并覆盖缓存，可以加上：
+
+  --force
+
 # Experiment Log
 
 ## 1. Project Goal
@@ -106,3 +124,6 @@
 - 暂时不做 FAISS / 微调。
 - 下一步将补充通用分层规则，而不是针对单个病例硬编码。
 
+### 补充了规则
+- 但是重复运行显示，多智能体系统在部分 case 上仍存在输出波动，尤其当风险判断依赖多条规则综合时更明显。
+- 在 20-case 扩展测试后，我们发现继续堆叠 synthesis prompt 会造成规则冗长、边界冲突和重复运行不稳定。为此，我们将下一步从“继续添加规则”转向“规则结构化与 prompt 压缩”，以提高系统稳定性和可解释性。
