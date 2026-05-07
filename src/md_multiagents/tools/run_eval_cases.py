@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 from md_multiagents.crew import MdMultiagentsCrew
 
 
-TESTS_PATH = Path("tests") / "ad_eval_cases.json"
+DEFAULT_CASES_PATH = Path("tests") / "ad_eval_cases.json"
 DEFAULT_RESULTS_PATH = Path("tests") / "eval_results.json"
 DEFAULT_SUMMARY_PATH = Path("tests") / "eval_summary.json"
 DEFAULT_CACHE_PATH = Path("tests") / "eval_cache.json"
@@ -187,14 +187,17 @@ def run_all_cases(
     output: Optional[str] = None,
     repeat: int = 1,
     summary_output: Optional[str] = None,
+    cases_file: Optional[str] = None,
     use_cache: bool = False,
     force_cache: bool = False,
 ):
-    if not TESTS_PATH.exists():
-        print(f"Test file not found: {TESTS_PATH}")
+    cases_path = Path(cases_file) if cases_file else DEFAULT_CASES_PATH
+
+    if not cases_path.exists():
+        print(f"Test file not found: {cases_path}")
         return
 
-    with TESTS_PATH.open("r", encoding="utf-8") as f:
+    with cases_path.open("r", encoding="utf-8") as f:
         cases = json.load(f)
 
     # filter by case_id if provided
@@ -377,6 +380,11 @@ def _parse_args():
     p = argparse.ArgumentParser(description="Run AD eval cases (batch) with optional filters to reduce API usage.")
     p.add_argument("--case-id", dest="case_id", help="Run only the case with this case_id")
     p.add_argument("--limit", dest="limit", type=int, help="Limit to first N cases")
+    p.add_argument(
+        "--cases-file",
+        dest="cases_file",
+        help="Input cases JSON file path (default: tests/ad_eval_cases.json)",
+    )
     p.add_argument("--output", dest="output", help="Output results file path (default: tests/eval_results.json)")
     p.add_argument(
         "--summary-output",
@@ -397,6 +405,7 @@ if __name__ == "__main__":
         output=args.output,
         repeat=args.repeat,
         summary_output=args.summary_output,
+        cases_file=args.cases_file,
         use_cache=getattr(args, "use_cache", False),
         force_cache=getattr(args, "force", False),
     )
