@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from md_multiagents.crew import MdMultiagentsCrew
+from md_multiagents.tools.risk_rules import assess_risk_rules
 
 
 DEFAULT_CASES_PATH = Path("tests") / "ad_eval_cases.json"
@@ -149,9 +150,23 @@ def build_summary(results: list[Dict[str, Any]]) -> Dict[str, Any]:
 
     failed_cases = []
     passed_total = 0
+    rule_agree_with_expected_count = 0
+    rule_agree_with_llm_count = 0
+    rule_unknown_count = 0
 
     for entry in results:
         expected_level = normalize_risk_level(entry.get("expected_risk_level"))
+        predicted_level = normalize_risk_level(entry.get("predicted_risk_level"))
+        rule_level = normalize_risk_level(entry.get("rule_based_risk"))
+
+        if rule_level is None or rule_level == "unknown":
+            rule_unknown_count += 1
+        else:
+            if expected_level is not None and rule_level == expected_level:
+                rule_agree_with_expected_count += 1
+            if predicted_level is not None and rule_level == predicted_level:
+                rule_agree_with_llm_count += 1
+
         if expected_level not in by_level:
             by_level[expected_level or "unknown"] = _empty_level_stats()
             expected_level = expected_level or "unknown"
@@ -178,6 +193,9 @@ def build_summary(results: list[Dict[str, Any]]) -> Dict[str, Any]:
         "accuracy": accuracy,
         "by_level": by_level,
         "failed_cases": failed_cases,
+        "rule_agree_with_expected_count": rule_agree_with_expected_count,
+        "rule_agree_with_llm_count": rule_agree_with_llm_count,
+        "rule_unknown_count": rule_unknown_count,
     }
 
 
@@ -228,6 +246,7 @@ def run_all_cases(
         case_id_val = case.get("case_id") or case.get("id")
         patient_record = case.get("patient_record", "")
         expected = case.get("expected_risk_level")
+        rule_result = assess_risk_rules(patient_record)
 
         print(f"[CASE_START] case_id={case_id_val}")
 
@@ -236,6 +255,8 @@ def run_all_cases(
             "expected_risk_level": expected,
             "predicted_risk_level": None,
             "pass_risk_level": False,
+            "rule_based_risk": rule_result.get("rule_based_risk"),
+            "matched_rules": rule_result.get("matched_rules", []),
             "raw_output": None,
             "error": None,
         }

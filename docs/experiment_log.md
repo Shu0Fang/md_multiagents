@@ -16,6 +16,10 @@
 
   --force
 
+如果是跑riskrules的test,用
+  ./.venv/bin/python -m unittest tests.test_risk_rules
+  ./.venv/bin/python -m unittest tests.test_run_eval_cases_rules
+
 # Experiment Log
 
 ## 1. Project Goal
@@ -130,3 +134,8 @@
 
 ## 重构了synthesis_task description
 - 目标是降低 prompt 长度和规则冲突，提高稳定性。
+
+## 增加了risk_rules.py模块。
+- 因为目前synthesis_task.description过长，影响了模型注意力，对于ad001的多次重复实验，结果并不一致。所以引入了根据关键词输出的riskrules，作为高置信情况下的判断基准，作为llm的辅助。
+
+## 将riskrules.py接入了评测程序，作为对照字段
