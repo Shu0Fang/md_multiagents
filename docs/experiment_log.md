@@ -138,4 +138,6 @@
 ## 增加了risk_rules.py模块。
 - 因为目前synthesis_task.description过长，影响了模型注意力，对于ad001的多次重复实验，结果并不一致。所以引入了根据关键词输出的riskrules，作为高置信情况下的判断基准，作为llm的辅助。
 
-## 将riskrules.py接入了评测程序，作为对照字段
+## 将risk_rules.py接入了评测程序，作为对照字段
+
+## 在test文件夹中引入了根据真实案例改编而来的external_public_cases.json
